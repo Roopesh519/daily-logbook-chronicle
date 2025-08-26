@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
+import { TimePicker } from '@/components/ui/time-picker';
 import { Clock, Plus, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -159,18 +160,16 @@ Bugs: ${summary.bugs}`;
           {timeline.map((item, index) => (
             <div key={item.id} className="flex gap-3 items-start group">
               <div className="flex gap-2 min-w-0 flex-1">
-                <Input
-                  placeholder="09:30"
+                <TimePicker
                   value={item.startTime}
-                  onChange={(e) => updateTimelineItem(item.id, 'startTime', e.target.value)}
-                  className="w-20 text-center"
+                  onChange={(value) => updateTimelineItem(item.id, 'startTime', value)}
+                  placeholder="09:30"
                 />
                 <span className="text-muted-foreground self-center">-</span>
-                <Input
-                  placeholder="10:00"
+                <TimePicker
                   value={item.endTime}
-                  onChange={(e) => updateTimelineItem(item.id, 'endTime', e.target.value)}
-                  className="w-20 text-center"
+                  onChange={(value) => updateTimelineItem(item.id, 'endTime', value)}
+                  placeholder="10:00"
                 />
                 <Input
                   placeholder="What did you work on?"
