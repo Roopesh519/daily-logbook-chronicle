@@ -10,16 +10,47 @@ interface TimePickerProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  format?: '12h' | '24h';
 }
 
-export const TimePicker = ({ value, onChange, placeholder, className }: TimePickerProps) => {
+export const TimePicker = ({ value, onChange, placeholder, className, format = '12h' }: TimePickerProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [is12Hour, setIs12Hour] = useState(format === '12h');
   
   // Parse current time value
   const [hours, minutes] = value ? value.split(':') : ['', ''];
   
+  // Convert 24h to 12h for display
+  const get12HourDisplay = (hour24: string) => {
+    if (!hour24) return '';
+    const hour = parseInt(hour24);
+    return hour === 0 ? '12' : hour > 12 ? (hour - 12).toString() : hour.toString();
+  };
+  
+  // Get AM/PM for current time
+  const getAmPm = (hour24: string) => {
+    if (!hour24) return 'AM';
+    const hour = parseInt(hour24);
+    return hour >= 12 ? 'PM' : 'AM';
+  };
+  
+  // Convert 12h to 24h
+  const convert12To24 = (hour12: string, ampm: string) => {
+    if (!hour12) return '00';
+    let hour = parseInt(hour12);
+    if (ampm === 'PM' && hour !== 12) hour += 12;
+    if (ampm === 'AM' && hour === 12) hour = 0;
+    return hour.toString().padStart(2, '0');
+  };
+  
   const handleHourChange = (hour: string) => {
-    const newTime = `${hour.padStart(2, '0')}:${minutes || '00'}`;
+    let newHour = hour;
+    if (is12Hour) {
+      newHour = convert12To24(hour, getAmPm(hours));
+    } else {
+      newHour = hour.padStart(2, '0');
+    }
+    const newTime = `${newHour}:${minutes || '00'}`;
     onChange(newTime);
   };
   
@@ -28,17 +59,40 @@ export const TimePicker = ({ value, onChange, placeholder, className }: TimePick
     onChange(newTime);
   };
   
+  const handleAmPmChange = (ampm: string) => {
+    if (!hours) return;
+    const current12Hour = get12HourDisplay(hours);
+    const newHour = convert12To24(current12Hour, ampm);
+    const newTime = `${newHour}:${minutes || '00'}`;
+    onChange(newTime);
+  };
+  
   const formatDisplayTime = (time: string) => {
     if (!time) return placeholder || 'Select time';
     const [h, m] = time.split(':');
+    if (is12Hour) {
+      const hour12 = get12HourDisplay(h);
+      const ampm = getAmPm(h);
+      return `${hour12}:${m} ${ampm}`;
+    }
     return `${h}:${m}`;
   };
   
-  // Generate hour options (00-23)
-  const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+  // Generate hour options based on format
+  const getHourOptions = () => {
+    if (is12Hour) {
+      return Array.from({ length: 12 }, (_, i) => (i + 1).toString());
+    } else {
+      return Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+    }
+  };
   
-  // Generate minute options (00, 15, 30, 45)
-  const minuteOptions = ['00', '15', '30', '45'];
+  // Generate minute options (00, 05, 10, 15, 30, 45)
+  const minuteOptions = ['00','05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
+  
+  // Get current display values
+  const displayHour = is12Hour ? get12HourDisplay(hours) : hours;
+  const displayAmPm = getAmPm(hours);
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -46,7 +100,7 @@ export const TimePicker = ({ value, onChange, placeholder, className }: TimePick
         <Button
           variant="outline"
           className={cn(
-            "w-24 justify-start text-left font-normal",
+            "w-28 justify-start text-left font-normal",
             !value && "text-muted-foreground",
             className
           )}
@@ -57,59 +111,28 @@ export const TimePicker = ({ value, onChange, placeholder, className }: TimePick
       </PopoverTrigger>
       <PopoverContent className="w-64 p-4" align="start">
         <div className="space-y-4">
-          <div className="text-sm font-medium text-center">Select Time</div>
-          
-          {/* Clock-style visual representation */}
-          <div className="relative w-32 h-32 mx-auto">
-            <div className="absolute inset-0 rounded-full border-2 border-border bg-background"></div>
-            
-            {/* Hour markers */}
-            {Array.from({ length: 12 }, (_, i) => {
-              const angle = (i * 30) - 90; // 30 degrees per hour, start at 12
-              const radian = (angle * Math.PI) / 180;
-              const x = 50 + 35 * Math.cos(radian);
-              const y = 50 + 35 * Math.sin(radian);
-              const hour = i === 0 ? 12 : i;
-              
-              return (
-                <div
-                  key={i}
-                  className="absolute w-6 h-6 flex items-center justify-center text-xs font-medium transform -translate-x-1/2 -translate-y-1/2"
-                  style={{ left: `${x}%`, top: `${y}%` }}
-                >
-                  {hour}
-                </div>
-              );
-            })}
-            
-            {/* Clock hands visualization */}
-            {hours && (
-              <div
-                className="absolute w-0.5 bg-primary origin-bottom transform -translate-x-1/2"
-                style={{
-                  height: '25%',
-                  left: '50%',
-                  top: '25%',
-                  transformOrigin: 'bottom center',
-                  transform: `translateX(-50%) rotate(${((parseInt(hours) % 12) * 30) - 90}deg)`
-                }}
-              />
-            )}
-            
-            {/* Center dot */}
-            <div className="absolute w-2 h-2 bg-primary rounded-full top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium">Select Time</div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIs12Hour(!is12Hour)}
+              className="text-xs"
+            >
+              {is12Hour ? '12H' : '24H'}
+            </Button>
           </div>
           
           {/* Time selectors */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className={cn("grid gap-3", is12Hour ? "grid-cols-3" : "grid-cols-2")}>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Hour</label>
-              <Select value={hours} onValueChange={handleHourChange}>
+              <Select value={displayHour} onValueChange={handleHourChange}>
                 <SelectTrigger className="h-8">
                   <SelectValue placeholder="HH" />
                 </SelectTrigger>
                 <SelectContent className="h-40">
-                  {hourOptions.map((hour) => (
+                  {getHourOptions().map((hour) => (
                     <SelectItem key={hour} value={hour}>
                       {hour}
                     </SelectItem>
@@ -124,7 +147,7 @@ export const TimePicker = ({ value, onChange, placeholder, className }: TimePick
                 <SelectTrigger className="h-8">
                   <SelectValue placeholder="MM" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="h-40">
                   {minuteOptions.map((minute) => (
                     <SelectItem key={minute} value={minute}>
                       {minute}
@@ -133,6 +156,21 @@ export const TimePicker = ({ value, onChange, placeholder, className }: TimePick
                 </SelectContent>
               </Select>
             </div>
+            
+            {is12Hour && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">AM/PM</label>
+                <Select value={displayAmPm} onValueChange={handleAmPmChange}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AM">AM</SelectItem>
+                    <SelectItem value="PM">PM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           
           <div className="flex justify-end pt-2">
